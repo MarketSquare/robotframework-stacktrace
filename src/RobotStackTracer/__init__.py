@@ -42,7 +42,7 @@ class RobotStackTracer:
 
     def __init__(self):
         self.StackTrace = []
-        self.new_error = True
+        self.last_error = None
         self.suite_source = None
         self.errormessage = ""
 
@@ -62,27 +62,33 @@ class RobotStackTracer:
         self.new_error = True
 
     def end_keyword(self, name, attrs):
-        if attrs["status"] == "FAIL" and self.new_error:
-            print(f"\nTraceback (most recent call last):")
-            call: StackTrace
-            for index, call in enumerate(self.StackTrace):
-                if call.kind >= Kind.Test:
-                    path = (
-                        f"{call.source}:{call.lineno}"
-                        if call.lineno and call.lineno > 0
-                        else f"{call.source}:0"
-                    )
-                    print(f'  File  "{path}"')
-                    print(f'  >  {call.name}    {"    ".join(call.args)}')
-                    if call.args != call.resolved_args:
-                        print(f'  E  {call.name}    {"    ".join(call.resolved_args)}')
+        if attrs["status"] == "FAIL" and not self.last_error:
+            self.last_error = self._create_stacktrace_text()
         self.StackTrace.pop()
-        self.new_error = False
+
+    def _create_stacktrace_text(self) -> str:
+        error_text = []
+        error_text += ["\nTraceback (most recent call last):"]
+        call: StackTrace
+        for index, call in enumerate(self.StackTrace):
+            if call.kind >= Kind.Test:
+                path = (
+                    f"{call.source}:{call.lineno}"
+                    if call.lineno and call.lineno > 0
+                    else f"{call.source}:0"
+                )
+                error_text += [f'  File  "{path}"']
+                error_text += [f'  >  {call.name}    {"    ".join(call.args)}']
+                if call.args != call.resolved_args:
+                    error_text += [f'  E  {call.name}    {"    ".join(call.resolved_args)}']
+        return error_text
 
     def end_test(self, name, attrs):
         if attrs["status"] == "FAIL":
+            print("\n".join(self.last_error))
             self.lineno = attrs["lineno"]
         self.StackTrace.pop()
+        self.last_error = None
 
     def end_suite(self, name, attrs):
         self.StackTrace = []
