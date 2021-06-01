@@ -64,6 +64,8 @@ class RobotStackTracer:
     def end_keyword(self, name, attrs):
         if attrs["status"] == "FAIL" and not self.last_error:
             self.last_error = self._create_stacktrace_text()
+        elif attrs["status"] != "FAIL":
+            self.last_error = None
         self.StackTrace.pop()
 
     def _create_stacktrace_text(self) -> str:

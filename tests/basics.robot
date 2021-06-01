@@ -11,6 +11,7 @@ Testing 3
 
 Testing 4
    Run Keyword and expect error  *  Keyword2
+   Fail  1
 
 *** Keywords ***
 Keyword
