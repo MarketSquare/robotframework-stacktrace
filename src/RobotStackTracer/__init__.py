@@ -13,9 +13,11 @@
 # limitations under the License.
 
 from enum import IntEnum
+
+from robot.errors import VariableError
 from robot.libraries.BuiltIn import BuiltIn
 
-__version__ = '0.1.2'
+__version__ = '0.2.0'
 
 bi = BuiltIn()
 
@@ -32,7 +34,7 @@ class StackTrace:
         self.lineno = lineno
         self.name = name
         self.args = args or []
-        self.resolved_args = res_args or []
+        self.resolved_args = res_args or {}
         self.kind = kind
 
 
@@ -43,6 +45,7 @@ class RobotStackTracer:
     def __init__(self):
         self.StackTrace = []
         self.last_error = None
+        self.new_error = True
         self.suite_source = None
         self.errormessage = ""
 
@@ -51,22 +54,36 @@ class RobotStackTracer:
         self.suite_source = attrs["source"]
 
     def start_test(self, name, attrs):
-        self.StackTrace.append(
-            StackTrace(self.suite_source, attrs["lineno"], name, kind=Kind.Test)
-        )
+        self.StackTrace.append(StackTrace(self.suite_source, attrs["lineno"], name, kind=Kind.Test))
 
     def start_keyword(self, name, attrs):
         self.StackTrace.append(
-            StackTrace(attrs["source"], attrs["lineno"], attrs["kwname"], attrs["args"], [bi.replace_variables(arg) for arg in attrs["args"]])
+            StackTrace(
+                attrs["source"],
+                attrs["lineno"],
+                attrs["kwname"],
+                attrs["args"],
+                self.resolve_variables(attrs),
+            )
         )
         self.new_error = True
 
+    def resolve_variables(self, attrs):
+        res_args = {}
+        for arg in attrs["args"]:
+            try:
+                resolved = bi.replace_variables(arg)
+                if resolved != arg:
+                    res_args[str(arg)] = f'{resolved} ({type(resolved).__name__})'
+            except VariableError:
+                res_args[str(arg)] = '<VariableError>'
+        return res_args
+
     def end_keyword(self, name, attrs):
-        if attrs["status"] == "FAIL" and not self.last_error:
+        if attrs["status"] == "FAIL" and self.new_error:
             self.last_error = self._create_stacktrace_text()
-        elif attrs["status"] != "FAIL":
-            self.last_error = None
         self.StackTrace.pop()
+        self.new_error = False
 
     def _create_stacktrace_text(self) -> str:
         error_text = []
@@ -81,8 +98,8 @@ class RobotStackTracer:
                 )
                 error_text += [f'  File  "{path}"']
                 error_text += [f'  >  {call.name}    {"    ".join(call.args)}']
-                if call.args != call.resolved_args:
-                    error_text += [f'  E  {call.name}    {"    ".join(call.resolved_args)}']
+                for var, value in call.resolved_args.items():
+                    error_text += [f'  |  {var} = {value}']
         return error_text
 
     def end_test(self, name, attrs):
