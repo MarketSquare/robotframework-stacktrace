@@ -15,7 +15,7 @@
 from enum import IntEnum
 from robot.libraries.BuiltIn import BuiltIn
 
-__version__ = '0.0.2'
+__version__ = '0.1.2'
 
 bi = BuiltIn()
 
