@@ -13,14 +13,23 @@
 # limitations under the License.
 
 from enum import IntEnum
+from os import path
 
 from robot.errors import VariableError
 from robot.libraries.BuiltIn import BuiltIn
 from robot.utils import cut_long_message
 
-__version__ = '0.2.1'
+__version__ = '0.3.0'
 
 bi = BuiltIn()
+
+muting_keywords = [
+    "Run Keyword And Ignore Error",
+    "Run Keyword And Expect Error",
+    "Run Keyword And Return Status",
+    "Run Keyword And Warn On Failure",
+    "Wait Until Keyword Succeeds",
+]
 
 
 class Kind(IntEnum):
@@ -45,29 +54,36 @@ class RobotStackTracer:
 
     def __init__(self):
         self.StackTrace = []
-        self.last_error = None
         self.new_error = True
         self.suite_source = None
         self.errormessage = ""
+        self.mutings = []
 
     def start_suite(self, name, attrs):
-        self.StackTrace = [StackTrace(attrs["source"], None, name, kind=Kind.Suite)]
         self.suite_source = attrs["source"]
 
     def start_test(self, name, attrs):
-        self.StackTrace.append(StackTrace(self.suite_source, attrs["lineno"], name, kind=Kind.Test))
+        self.StackTrace = [StackTrace(self.suite_source, attrs["lineno"], name, kind=Kind.Test)]
 
     def start_keyword(self, name, attrs):
         self.StackTrace.append(
             StackTrace(
-                attrs["source"],
-                attrs["lineno"],
-                attrs["kwname"],
-                attrs["args"],
+                self.fix_source(attrs['source']),
+                attrs['lineno'],
+                attrs['kwname'],
+                attrs['args'],
                 self.resolve_variables(attrs),
             )
         )
+        if attrs['kwname'] in muting_keywords:
+            self.mutings.append(attrs['kwname'])
         self.new_error = True
+
+    def fix_source(self, source):
+        if source and path.isdir(source) and path.isfile(path.join(source, '__init__.robot')):
+            return path.join(source, '__init__.robot')
+        else:
+            return source
 
     def resolve_variables(self, attrs):
         res_args = {}
@@ -77,12 +93,14 @@ class RobotStackTracer:
                 if resolved != arg:
                     res_args[str(arg)] = f'{resolved} ({type(resolved).__name__})'
             except VariableError:
-                res_args[str(arg)] = '<VariableError>'
+                res_args[str(arg)] = '<Variable does not yet exist.>'
         return res_args
 
     def end_keyword(self, name, attrs):
-        if attrs["status"] == "FAIL" and self.new_error:
-            self.last_error = self._create_stacktrace_text()
+        if self.mutings and attrs['kwname'] == self.mutings[-1]:
+            self.mutings.pop()
+        if attrs["status"] == "FAIL" and self.new_error and not self.mutings:
+            print("\n".join(self._create_stacktrace_text()))
         self.StackTrace.pop()
         self.new_error = False
 
@@ -99,22 +117,15 @@ class RobotStackTracer:
                 )
                 error_text += [f'    {"~" * 74}']
                 error_text += [f'    File  "{path}"']
-                error_text += [f'      {call.name}    {"    ".join(call.args)}']
+                error_text += [f'      {call.name}    {"    ".join(call.args or [])}']
                 for var, value in call.resolved_args.items():
                     error_text += [f'      |  {var} = {cut_long_message(value)}']
         error_text += [f'{"_" * 78}']
         return error_text
 
     def end_test(self, name, attrs):
-        if attrs["status"] == "FAIL":
-            print("\n".join(self.last_error))
-            self.lineno = attrs["lineno"]
-        self.StackTrace.pop()
-        self.last_error = None
-
-    def end_suite(self, name, attrs):
         self.StackTrace = []
 
     def log_message(self, message):
         if message["level"] == "FAIL":
-            self.errormessage = message["message"]
+            self.errormessage = message["message"]  # may be relevant / Not used

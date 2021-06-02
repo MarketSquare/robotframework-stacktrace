@@ -11,16 +11,6 @@ ${variable}     scalar content
 PASS Testing 1
    Log  passes
 
-PASS Testing 2
-   Run Keyword and expect error  *  Keyword2
-
-PASS Testing 3
-   Run Keyword And Ignore Error    Keyword2
-
-Pass WUKS
-    Set Global Variable    ${counter}    ${0}
-    Wait Until Keyword Succeeds    15 times    10 ms    Fails some times    ${10}
-
 Testing 1
    Should be equal    1    2
 
@@ -53,9 +43,7 @@ Fail with number
     ${var}    Set variable   ${1775675}
     Should be equal   ${var}  23
 
-Fail in WUKS
-    Set Global Variable    ${counter}    ${0}
-    Wait Until Keyword Succeeds    9 times    10 ms    Fails some times    ${10}
+
 
 Fails with Unknown Variable
     Log    ${unknown_var}
@@ -81,9 +69,3 @@ Check Dict
 Fail Expanded
     [Arguments]     @{vargs}
     Fail    ${vargs}
-
-Fails some times
-    [Arguments]    ${times}
-    ${value}    Set Variable    ${counter}
-    Set Global Variable    ${counter}    ${value+1}
-    Should Be Equal    ${times}    ${counter}
