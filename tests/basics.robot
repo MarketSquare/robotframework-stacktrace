@@ -49,6 +49,10 @@ Fail with large file
     ${pure_vomit}=  Get File  ${CURDIR}/vomit.dat
     Should be equal   ${pure_vomit}  puke
 
+Fail with number
+    ${var}    Set variable   ${1775675}
+    Should be equal   ${var}  23
+
 Fail in WUKS
     Set Global Variable    ${counter}    ${0}
     Wait Until Keyword Succeeds    9 times    10 ms    Fails some times    ${10}
