@@ -86,8 +86,8 @@ class RobotStackTracer:
         self.new_error = False
 
     def _create_stacktrace_text(self) -> str:
-        error_text = []
-        error_text += ["\nTraceback (most recent call last):"]
+        error_text = [f'  ']
+        error_text += ["  Traceback (most recent call last):"]
         call: StackTrace
         for index, call in enumerate(self.StackTrace):
             if call.kind >= Kind.Test:
@@ -96,10 +96,12 @@ class RobotStackTracer:
                     if call.lineno and call.lineno > 0
                     else f"{call.source}:0"
                 )
-                error_text += [f'  File  "{path}"']
-                error_text += [f'  >  {call.name}    {"    ".join(call.args)}']
+                error_text += [f'    {"~" * 74}']
+                error_text += [f'    File  "{path}"']
+                error_text += [f'      {call.name}    {"    ".join(call.args)}']
                 for var, value in call.resolved_args.items():
-                    error_text += [f'  |  {var} = {value}']
+                    error_text += [f'      |  {var} = {value}']
+        error_text += [f'{"_" * 78}']
         return error_text
 
     def end_test(self, name, attrs):
