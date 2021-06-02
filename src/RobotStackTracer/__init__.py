@@ -16,6 +16,7 @@ from enum import IntEnum
 
 from robot.errors import VariableError
 from robot.libraries.BuiltIn import BuiltIn
+from robot.utils import cut_long_message
 
 __version__ = '0.2.1'
 
@@ -100,7 +101,7 @@ class RobotStackTracer:
                 error_text += [f'    File  "{path}"']
                 error_text += [f'      {call.name}    {"    ".join(call.args)}']
                 for var, value in call.resolved_args.items():
-                    error_text += [f'      |  {var} = {value}']
+                    error_text += [f'      |  {var} = {cut_long_message(value)}']
         error_text += [f'{"_" * 78}']
         return error_text
 
