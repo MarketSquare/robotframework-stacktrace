@@ -1,5 +1,7 @@
 *** Settings ***
 Library    Collections
+Library    OperatingSystem
+
 *** Variables ***
 ${variable}     scalar content
 &{dict}     key1=value1  key2=value2
@@ -42,6 +44,10 @@ Fail expanded items
 
 Fail expanded list
     Fail Expanded    @{list}
+
+Fail with large file
+    ${pure_vomit}=  Get File  ${CURDIR}/vomit.dat
+    Should be equal   ${pure_vomit}  puke
 
 Fail in WUKS
     Set Global Variable    ${counter}    ${0}
