@@ -1,2 +1,5 @@
 include LICENSE
 recursive-include tests *.robot
+
+# added by check-manifest
+recursive-include tests *.dat

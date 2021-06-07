@@ -19,7 +19,7 @@ from robot.errors import VariableError
 from robot.libraries.BuiltIn import BuiltIn
 from robot.utils import cut_long_message
 
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 
 bi = BuiltIn()
 
@@ -38,8 +38,11 @@ class Kind(IntEnum):
     Keyword = 2
 
 
-class StackTrace:
-    def __init__(self, source, lineno, name, args=None, res_args=None, kind: Kind = Kind.Keyword):
+class StackElement:
+    def __init__(
+        self, file, source, lineno, name, args=None, res_args=None, kind: Kind = Kind.Keyword
+    ):
+        self.file = file
         self.source = source
         self.lineno = lineno
         self.name = name
@@ -54,22 +57,39 @@ class RobotStackTracer:
 
     def __init__(self):
         self.StackTrace = []
+        self.SuiteTrace = []
         self.new_error = True
-        self.suite_source = None
         self.errormessage = ""
         self.mutings = []
+        self.lib_files = {}
 
     def start_suite(self, name, attrs):
-        self.suite_source = attrs["source"]
+        self.SuiteTrace.append(attrs["source"])
+
+    def library_import(self, name, attrs):
+        self.lib_files[name] = attrs.get('source')
+
+    def resource_import(self, name, attrs):
+        self.lib_files[name] = attrs.get('source')
 
     def start_test(self, name, attrs):
-        self.StackTrace = [StackTrace(self.suite_source, attrs["lineno"], name, kind=Kind.Test)]
+        self.StackTrace = [
+            StackElement(
+                self.SuiteTrace[-1], self.SuiteTrace[-1], attrs["lineno"], name, kind=Kind.Test
+            )
+        ]
 
     def start_keyword(self, name, attrs):
+        source = attrs.get(
+            'source', self.StackTrace[-1].file if self.StackTrace else self.SuiteTrace[-1]
+        )
+        file = self.lib_files.get(attrs.get('libname'), source)
+
         self.StackTrace.append(
-            StackTrace(
-                self.fix_source(attrs['source']),
-                attrs['lineno'],
+            StackElement(
+                file,
+                self.fix_source(source),
+                attrs.get('lineno', None),
                 attrs['kwname'],
                 attrs['args'],
                 self.resolve_variables(attrs),
@@ -107,17 +127,18 @@ class RobotStackTracer:
     def _create_stacktrace_text(self) -> str:
         error_text = [f'  ']
         error_text += ["  Traceback (most recent call last):"]
-        call: StackTrace
+        call: StackElement
         for index, call in enumerate(self.StackTrace):
             if call.kind >= Kind.Test:
+                kind = "T:" if call.kind == Kind.Test else ""
                 path = (
                     f"{call.source}:{call.lineno}"
                     if call.lineno and call.lineno > 0
                     else f"{call.source}:0"
                 )
                 error_text += [f'    {"~" * 74}']
-                error_text += [f'    File  "{path}"']
-                error_text += [f'      {call.name}    {"    ".join(call.args or [])}']
+                error_text += [f'    File  {path}']
+                error_text += [f'    {kind}  {call.name}    {"    ".join(call.args or [])}']
                 for var, value in call.resolved_args.items():
                     error_text += [f'      |  {var} = {cut_long_message(value)}']
         error_text += [f'{"_" * 78}']
@@ -125,6 +146,9 @@ class RobotStackTracer:
 
     def end_test(self, name, attrs):
         self.StackTrace = []
+
+    def end_suite(self, name, attrs):
+        self.SuiteTrace.pop()
 
     def log_message(self, message):
         if message["level"] == "FAIL":

@@ -1,6 +1,7 @@
 *** Settings ***
 Library    Collections
 Library    OperatingSystem
+Resource    keywords.resource
 
 *** Variables ***
 ${variable}     scalar content
@@ -51,12 +52,15 @@ Fails with Unknown Variable
 Fail a compount
     Fail     this is a ${variable} text with a ${list}
 
+Wrong If
+    Log    Test
+    IF   time.seven
+        log    test
+    END
+
 *** Keywords ***
 Keyword
    Keyword2
-
-Keyword2
-   Fail  for best reason
 
 Check a List
     [Arguments]     ${list}

@@ -32,6 +32,6 @@ setup(
         "Topic :: Software Development :: Testing :: Acceptance",
         "Framework :: Robot Framework",
     ],
-    install_requires=['robotframework >= 4.0.3'],
+    install_requires=['robotframework >= 3.2'],
     python_requires='>=3.6',
 )
