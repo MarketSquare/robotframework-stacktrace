@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from enum import IntEnum
-from functools import cached_property
 from os import path
 
 from robot.errors import VariableError
@@ -50,17 +49,14 @@ class StackElement:
         self.args = args or []
         self.kind = kind
 
-    @cached_property
-    def resolved_args(self):
-        res_args = {}
+    def resolve_args(self):
         for arg in self.args:
             try:
                 resolved = bi.replace_variables(arg)
                 if resolved != arg:
-                    res_args[str(arg)] = f"{resolved} ({type(resolved).__name__})"
+                    yield str(arg), f"{resolved} ({type(resolved).__name__})"
             except VariableError:
-                res_args[str(arg)] = "<Unable to define variable value>"
-        return res_args
+                yield str(arg), "<Unable to define variable value>"
 
 
 class RobotStackTracer:
@@ -149,7 +145,7 @@ class RobotStackTracer:
                 error_text += [
                     f'    {kind}  {call.name}    {"    ".join(call.args or [])}'
                 ]
-                for var, value in call.resolved_args.items():
+                for var, value in call.resolve_args():
                     error_text += [f"      |  {var} = {cut_long_message(value)}"]
         error_text += [f'{"_" * 78}']
         return error_text
