@@ -19,7 +19,7 @@ from robot.errors import VariableError
 from robot.libraries.BuiltIn import BuiltIn
 from robot.utils import cut_long_message
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 bi = BuiltIn()
 
