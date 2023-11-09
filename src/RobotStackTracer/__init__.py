@@ -66,6 +66,7 @@ class RobotStackTracer:
         self.StackTrace = []
         self.SuiteTrace = []
         self.new_error = True
+        self.TRY_zone = False
         self.errormessage = ""
         self.mutings = []
         self.lib_files = {}
@@ -108,6 +109,10 @@ class RobotStackTracer:
         )
         if attrs["kwname"] in muting_keywords:
             self.mutings.append(attrs["kwname"])
+
+        if attrs["type"] != "KEYWORD":
+            self.TRY_types = attrs["type"]
+
         self.new_error = True
 
     def fix_source(self, source):
@@ -120,7 +125,24 @@ class RobotStackTracer:
         else:
             return source
 
+    def TRY_block_handler(self, attrs):
+        if self.TRY_types == "TRY":
+            self.TRY_zone = True
+            self.catch_fail = 0
+        elif self.TRY_types == "EXCEPT":
+            self.TRY_zone = False
+        elif self.TRY_types == "FINALLY":
+            if self.catch_fail >= 1 and self.TRY_zone == True:
+                attrs["status"] = "FAIL"
+            self.TRY_zone = False
+
+        if self.TRY_zone == True and attrs["status"] == "FAIL":
+            self.catch_fail += 1
+            self.new_error = False
+
     def end_keyword(self, name, attrs):
+        self.TRY_block_handler(attrs)
+
         if self.mutings and attrs["kwname"] == self.mutings[-1]:
             self.mutings.pop()
         if attrs["status"] == "FAIL" and self.new_error and not self.mutings:
